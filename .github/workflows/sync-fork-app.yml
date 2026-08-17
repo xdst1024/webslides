@@ -1,0 +1,42 @@
+name: Sync app & actions from upstream
+
+on:
+  schedule:
+    - cron: "0 4 * * 1" # 每周一 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM: "https://github.com/ChaosJohn/webslides.git"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.repository != 'ChaosJohn/webslides'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "$UPSTREAM"
+          git fetch --depth=1 upstream main
+
+      - name: Apply upstream state for managed paths
+        run: |
+          # 只同步“实现层”，不动 fork 自己的内容（docs 根、uploads 等）
+          git rm -r -q --cached --ignore-unmatch docs/app scripts .github/workflows/generate-index.yml 2>/dev/null || true
+          git clean -fdq -- docs/app scripts .github/workflows/generate-index.yml 2>/dev/null || true
+          git checkout --force upstream/main -- docs/app scripts .github/workflows/generate-index.yml
+          git add -A
+
+      - name: Commit & push if changed
+        run: |
+          if git diff --cached --quiet; then
+            echo "已是最新，无需提交"
+            exit 0
+          fi
+          git commit -m "chore: sync app & actions from upstream"
+          git push origin HEAD

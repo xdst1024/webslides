@@ -766,6 +766,23 @@ a:hover {
   color: #5f7388;
 }
 
+.ws-fgroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ws-fgroup + .ws-fgroup {
+  padding-left: 12px;
+  border-left: 1px solid #22354c;
+}
+
+.ws-label {
+  color: #5f7388;
+  font-size: 12px;
+  user-select: none;
+}
+
 .ws-chips {
   display: flex;
   flex-wrap: wrap;
@@ -773,6 +790,9 @@ a:hover {
 }
 
 .ws-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid #3a5572;
   background: none;
   color: #b9c9d8;
@@ -783,16 +803,28 @@ a:hover {
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
+.ws-chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chipc, #8a8f96);
+  flex: 0 0 auto;
+}
+
 .ws-chip:hover {
-  border-color: var(--orange);
-  color: var(--orange);
+  border-color: var(--chipc, var(--orange));
+  color: var(--chipc, var(--orange));
 }
 
 .ws-chip.active {
-  background: var(--orange);
-  border-color: var(--orange);
+  background: var(--chipc, var(--orange));
+  border-color: var(--chipc, var(--orange));
   color: #fff;
   font-weight: 600;
+}
+
+.ws-chip.active .dot {
+  background: #fff;
 }
 
 .ws-sort {
@@ -803,11 +835,11 @@ a:hover {
 
 .ws-sort-type,
 .ws-order {
-  border: 1px solid #3a5572;
-  background: none;
-  color: #b9c9d8;
+  border: 1px solid #2a4a6d;
+  background: #1a2f46;
+  color: #dbe7f3;
   font-size: 12.5px;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 6px 12px;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
@@ -819,10 +851,26 @@ a:hover {
   color: var(--orange);
 }
 
+.ws-sort-type {
+  font-weight: 600;
+  min-width: 74px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws-caret {
+  color: var(--orange);
+  margin-left: 8px;
+  font-size: 11px;
+}
+
 .ws-order {
   width: 36px;
   padding: 6px 0;
   text-align: center;
+  color: var(--orange);
+  font-weight: 700;
 }
 
 .ws-list .ws-file {
@@ -861,4 +909,92 @@ a:hover {
   color: var(--gray);
   font-size: 12px;
   font-weight: 400;
+}
+
+/* ============================== 首页：管理工具栏 ============================== */
+.ws-admin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: #16283c;
+  border: 1px solid #1e3248;
+  border-radius: 9px;
+  padding: 8px 10px;
+}
+
+.ws-admin[hidden] {
+  display: none !important;
+}
+
+.ws-admin-btn {
+  border: 1px solid #3a5572;
+  background: none;
+  color: #b9c9d8;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+
+.ws-admin-btn:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.ws-admin-btn.active {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ws-admin-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.ws-admin-btn.danger {
+  border-color: #b33a3a;
+  color: #ffb4a0;
+}
+
+.ws-admin-btn.danger:not(:disabled):hover {
+  background: #b33a3a;
+  color: #fff;
+  border-color: #b33a3a;
+}
+
+.ws-admin-count {
+  color: #a8b8c8;
+  font-size: 12.5px;
+}
+
+.ws-admin-hint {
+  color: #ffb4a0;
+  font-size: 12.5px;
+  flex-basis: 100%;
+}
+
+.ws-admin-hint.ok { color: #7fd48c; }
+
+.ws-sel {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--orange);
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.ws-spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ws-spin .8s linear infinite;
 }

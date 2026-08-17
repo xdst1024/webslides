@@ -37,6 +37,33 @@ node scripts/publish-file.mjs <文件或目录> [--as <docs内相对路径>] [--
 - 默认提交信息为 `feat: add docs/<路径>`，可用 `--msg` 自定义；目标已存在时需 `--force`
 - 会拒绝覆盖站点实现文件（index/viewer/mdpreview/manifest/assets 等），并提示其它未提交改动
 
+**方式三：Web 页面上传（自用隐藏入口）**
+
+打开 `https://slides.99se.cn/app/upload.html?up=<Token>` 即可在浏览器里上传文件到指定目录（默认 `docs/uploads/`，可手动填子目录），上传即提交，Actions 自动刷新列表；同名文件自动覆盖。
+
+- 文件选择：支持点击 `input` 弹出选择、也可直接把文件拖入上传卡片；可多选，**再次选择会并入现有待传列表**；每行可单独 ✕ 移除。
+- 目标仓库：自动识别——fork 的 Actions 构建时会把自身 `owner/repo` 写入 `app/manifest.json`，上传页读取它即可，**自定义域名也无需手动设置**；`&repo=owner/repo` 仍可手动覆盖；主仓无需任何操作。
+- Token：建议使用「仅本仓库 + Contents 读写 + 不限定时间久但可轮换」的 fine-grained Personal Access Token。Token 只临时存在于浏览器会话内存（sessionStorage），**不会写入代码库**，也不要把它放进任何提交。
+- **安全边界**：该页面对任何知道入口 URL 参数的人开放。前端 Token 对懂技术的人可见，请务必用最小权限 Token 并定期轮换；本功能定位为“自用”，不要用于多人生开放投稿。
+
+### 获取并配置上传 Token（fine-grained PAT）
+
+1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
+2. **Token name**：如 `webslides-upload`；**Expiration**：建议 30~90 天
+3. **Resource owner**：选仓库所属账号（fork 后选你自己的账号）
+4. **Repository access**：`Only select repositories` → 勾选你的仓库
+5. **Permissions → Repository permissions → Contents**：`Read and write`（其余保持 No access；Metadata 自动给只读）
+6. 生成后复制 `github_pat_…`（只显示一次），拼进上传页 URL：
+   `https://<你的域名>/app/upload.html?up=github_pat_xxx[&repo=owner/repo]`
+
+### Fork 之后：运行与自动同步
+
+1. **让 fork 可运行**：仓库 **Settings → Pages**：Source 选 `main` 分支、目录 `/docs`；**Actions** 保持启用（默认开启）。
+2. **上传配置**：用自己的 Token。仓库归属自动识别（Actions 构建时把 fork 的 `owner/repo` 写进 `app/manifest.json`，自定义域名同样生效）；如确需手动，可用 `&repo=你的owner/你的repo` 覆盖。每个 fork 用各自的 Token，不要共用。
+3. **自动同步上游 app/scripts/actions**：仓库自带工作流 `.github/workflows/sync-fork-app.yml`——每周一 04:00（UTC）自动运行，也可在 **Actions** 页手动 **Run workflow**。它会把上游的 `docs/app`、`scripts`、`generate-index.yml` 同步覆盖到你的 fork，**不影响**你的内容文件（docs 根、uploads 子目录等）。上游演进（如本仓更新 app 实现或 Actions）后，fork 只要跑一次该工作流即可跟进。
+4. 备用手动方式：GitHub 自带的 **Sync fork** 按钮（合并全部上游改动，包括内容；谨慎使用）。
+5. 请在 fork 后自查：首次运行该工作流前，fork 里的 `docs/app/` 即 fork 时点的上游快照，可直接使用。
+
 ## 本地预览
 
 ```bash

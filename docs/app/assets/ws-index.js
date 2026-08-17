@@ -126,6 +126,56 @@
 
   var state = { view: "all", q: "", types: {}, sort: "name", dir: 1 };
 
+  // ---------- 管理模式（读上传页写入的会话 Token） ----------
+  var ADMIN_TOKEN = sessionStorage.getItem("wsUpToken") || "";
+  var DEFAULT_OWNER = "ChaosJohn";
+  var DEFAULT_REPO = "webslides";
+  var BRANCH = "main";
+
+  function qp(key) {
+    var m = new RegExp("[?&]" + key + "=([^&]*)").exec(location.search);
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+
+  function resolveRepo() {
+    var ov = qp("repo");
+    if (ov) {
+      var p = ov.split("/");
+      if (p.length === 2 && p[0] && p[1]) return [p[0], p[1]];
+    }
+    var host = location.hostname;
+    if (host.endsWith("github.io")) {
+      var seg = location.pathname.split("/").filter(Boolean);
+      var o = host.split(".")[0];
+      var r = seg.length && seg[0] !== "app" ? seg[0] : DEFAULT_REPO;
+      if (o) return [o, r];
+    }
+    return [DEFAULT_OWNER, DEFAULT_REPO];
+  }
+
+  var OWNER = resolveRepo()[0];
+  var REPO = resolveRepo()[1];
+
+  var admin = { on: false, selected: {} };
+  var windowRef = window;
+
+  function adminCount() {
+    return Object.keys(admin.selected).length;
+  }
+
+  function updateAdminUI() {
+    var delBtn = byId("wsDelBtn");
+    if (!delBtn) return;
+    delBtn.disabled = adminCount() === 0 || delBtn.classList.contains("busy");
+    byId("wsAdminCount").textContent = adminCount() ? "已选 " + adminCount() + " 项" : "";
+  }
+
+  function setAdminHint(text, cls) {
+    var h = byId("wsAdminHint");
+    h.textContent = text;
+    h.className = "ws-admin-hint" + (cls ? " " + cls : "");
+  }
+
   function fileMatches(f) {
     if (state.q) {
       if (f.name.toLowerCase().indexOf(state.q) === -1) return false;
@@ -165,6 +215,20 @@
     var badge = mkEl("span", "ws-badge", badgeInfo(fileEl.name).text);
     badge.style.background = badgeInfo(fileEl.name).color;
     badge.title = fileEl.name;
+
+    if (admin.on && ADMIN_TOKEN) {
+      var sel = document.createElement("input");
+      sel.type = "checkbox";
+      sel.className = "ws-sel";
+      sel.setAttribute("aria-label", "选择 " + fileEl.name);
+      sel.checked = !!admin.selected[fileEl.path];
+      sel.addEventListener("change", function () {
+        if (sel.checked) admin.selected[fileEl.path] = true;
+        else delete admin.selected[fileEl.path];
+        updateAdminUI();
+      });
+      row.appendChild(sel);
+    }
 
     var name = mkEl("a", "ws-name ws-name-link", fileEl.name);
     name.title = fileEl.path;
@@ -287,7 +351,7 @@
     return out;
   }
 
-  function buildNode(entry, basePath) {
+  function buildNode(entry, basePath, depth) {
     var li = document.createElement("li");
 
     if (entry.type === "dir") {
@@ -309,9 +373,9 @@
       if (entry.children.length) {
         var kidsWrap = mkEl("div", "ws-kids");
         var ul = mkEl("ul", "ws-tree");
-        ul.style.setProperty("--depth", 0);
+        ul.style.setProperty("--depth", depth + 1);
         entry.children.forEach(function (child) {
-          var cli = buildNode(child, path);
+          var cli = buildNode(child, path, depth + 1);
           if (cli) ul.appendChild(cli);
         });
         kidsWrap.appendChild(ul);
@@ -339,7 +403,7 @@
     var ul = mkEl("ul", "ws-tree");
     ul.style.setProperty("--depth", 0);
     entries.forEach(function (entry) {
-      var li = buildNode(entry, "");
+      var li = buildNode(entry, "", 0);
       if (li) ul.appendChild(li);
     });
     wrap.appendChild(ul);
@@ -376,9 +440,17 @@
     chipBox.innerHTML = "";
     var present = usedCats(files, {});
     present.forEach(function (cat) {
-      var chip = mkEl("button", "ws-chip", cat.label);
+      var chip = document.createElement("button");
+      chip.className = "ws-chip";
       chip.dataset.cat = cat.key;
       chip.title = cat.label;
+      chip.style.setProperty("--chipc", BADGE_COLOR[cat.key]);
+      var dot = document.createElement("i");
+      dot.className = "dot";
+      var txt = document.createElement("span");
+      txt.textContent = cat.label;
+      chip.appendChild(dot);
+      chip.appendChild(txt);
       chip.addEventListener("click", function () {
         var key = cat.key;
         if (state.types[key]) delete state.types[key];
@@ -411,10 +483,13 @@
     var sortBtn = document.getElementById("wsSortBtn");
     var order = ["name", "size", "time"];
     var labels = { name: "名称", size: "大小", time: "修改时间" };
+    function renderSortBtn() {
+      sortBtn.innerHTML = labels[state.sort] + ' <span class="ws-caret">\u25BE</span>';
+    }
     sortBtn.addEventListener("click", function () {
       var i = order.indexOf(state.sort);
       state.sort = order[(i + 1) % order.length];
-      sortBtn.textContent = labels[state.sort];
+      renderSortBtn();
       render();
     });
 
@@ -422,6 +497,139 @@
     dirBtn.addEventListener("click", function () {
       state.dir *= -1;
       dirBtn.textContent = state.dir === 1 ? "↑" : "↓";
+      render();
+    });
+
+    wireAdmin();
+  }
+
+  // ============ 管理（删除）============
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function apiReq(method, url, body) {
+    return new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open(method, url);
+      xhr.setRequestHeader("Accept", "application/vnd.github+json");
+      xhr.setRequestHeader("Authorization", "Bearer " + ADMIN_TOKEN);
+      xhr.setRequestHeader("X-GitHub-Api-Version", "2022-11-28");
+      xhr.responseType = "json";
+      var payload = body ? JSON.stringify(body) : null;
+      if (payload) xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.response);
+        } else {
+          var m = (xhr.response && (xhr.response.message || xhr.status)) || ("HTTP " + xhr.status);
+          reject(new Error(typeof m === "string" ? m : JSON.stringify(m)));
+        }
+      };
+      xhr.onerror = function () {
+        reject(new Error("网络错误"));
+      };
+      xhr.send(payload || null);
+    });
+  }
+
+  function apiPath(p) {
+    return "https://api.github.com/repos/" + OWNER + "/" + REPO + "/" + p;
+  }
+
+  async function batchDelete(paths) {
+    var head = await apiReq("GET", apiPath("git/ref/heads/" + BRANCH));
+    var branchSha = head.object.sha;
+    var commit = await apiReq("GET", apiPath("git/commits/" + branchSha));
+    var tree = await apiReq("POST", apiPath("git/trees"), {
+      base_tree: commit.tree.sha,
+      tree: paths.map(function (p) {
+        return { path: "docs/" + p, mode: "100644", type: "blob", sha: null };
+      })
+    });
+    var newCommit = await apiReq("POST", apiPath("git/commits"), {
+      message: "chore: delete " + paths.length + " file(s) via web",
+      parents: [branchSha],
+      tree: tree.sha
+    });
+    await apiReq("PATCH", apiPath("git/refs/heads/" + BRANCH), { sha: newCommit.sha, force: false });
+  }
+
+  async function deleteSelected() {
+    var keys = Object.keys(admin.selected);
+    if (!keys.length) return;
+    if (!windowRef.confirm("确定删除选中的 " + keys.length + " 个文件？删除会直接写入提交，不可恢复。")) return;
+
+    var delBtn = byId("wsDelBtn");
+    var hint = byId("wsAdminHint");
+    delBtn.classList.add("busy");
+    delBtn.disabled = true;
+    delBtn.innerHTML = '<span class="ws-spin"></span>删除中…';
+    setAdminHint("正在删除…");
+
+    try {
+      await batchDelete(keys);
+      admin.selected = {};
+      setAdminHint("已提交删除 " + keys.length + " 个文件（一条提交）。需要等 Actions 处理后，手动刷新页面即可生效。", "ok");
+    } catch (err) {
+      setAdminHint("删除失败：" + (err && err.message || String(err)) + "。可稍后重试。");
+    }
+    delBtn.classList.remove("busy");
+    delBtn.innerHTML = "删除";
+    delBtn.disabled = true;
+    render();
+    updateAdminUI();
+  }
+
+  function wireAdmin() {
+    if (!ADMIN_TOKEN) return;
+    var adminBar = byId("wsAdmin");
+    adminBar.hidden = false;
+
+    var selBtn = byId("wsSelBtn");
+    var selAllBtn = byId("wsSelAll");
+    var delBtn = byId("wsDelBtn");
+
+    selBtn.addEventListener("click", function () {
+      admin.on = !admin.on;
+      if (!admin.on) admin.selected = {};
+      selBtn.classList.toggle("active", admin.on);
+      selBtn.textContent = admin.on ? "取消选择" : "选择";
+      selAllBtn.hidden = !admin.on;
+      byId("wsAdminHint").textContent = "";
+      render();
+      updateAdminUI();
+    });
+
+    selAllBtn.addEventListener("click", function () {
+      var allPath = files.map(function (f) {
+        return f.path;
+      });
+      var allSelected = allPath.every(function (p) {
+        return !!admin.selected[p];
+      });
+      admin.selected = {};
+      if (!allSelected) {
+        allPath.forEach(function (p) {
+          admin.selected[p] = true;
+        });
+      }
+      selAllBtn.textContent = allSelected ? "全选" : "清空";
+      render();
+      updateAdminUI();
+    });
+
+    delBtn.addEventListener("click", deleteSelected);
+
+    var logoutBtn = byId("wsLogout");
+    logoutBtn.addEventListener("click", function () {
+      sessionStorage.removeItem("wsUpToken");
+      ADMIN_TOKEN = "";
+      admin.on = false;
+      admin.selected = {};
+      adminBar.hidden = true;
+      setAdminHint("");
       render();
     });
   }
@@ -440,6 +648,12 @@
       return res.json();
     })
     .then(function (manifest) {
+      var meta = manifest.meta;
+      if (meta && meta.owner && meta.repo &&
+          /^[A-Za-z0-9_.-]+$/.test(meta.owner) && /^[A-Za-z0-9_.-]+$/.test(meta.repo)) {
+        OWNER = meta.owner;
+        REPO = meta.repo;
+      }
       tree = manifest.tree || [];
       files = flatten(tree, "");
       if (!files.length) {

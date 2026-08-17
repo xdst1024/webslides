@@ -6,8 +6,8 @@ import { join, dirname } from "node:path";
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const appDir = join(scriptsDir, "..", "docs", "app");
 
-const ASSET_FILES = ["ws-style.css", "ws-index.js", "ws-viewer.js", "ws-mdviewer.js"];
-const HTML_FILES = ["index.html", "viewer.html", "mdpreview.html"];
+const ASSET_FILES = ["ws-style.css", "ws-index.js", "ws-viewer.js", "ws-mdviewer.js", "ws-upload.js"];
+const HTML_FILES = ["index.html", "viewer.html", "mdpreview.html", "upload.html"];
 
 const hash = createHash("sha256");
 for (const name of ASSET_FILES) {

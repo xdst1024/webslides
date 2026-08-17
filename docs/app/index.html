@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache">
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
 <title>WebSlides</title>
-<link rel="stylesheet" href="./assets/ws-style.css?v=dde30607e4">
+<link rel="stylesheet" href="./assets/ws-style.css?v=79c2c0c299">
 </head>
 <body>
 <main class="ws-index">
@@ -22,11 +23,29 @@
 
     <div class="ws-controls">
       <input class="ws-search" id="wsSearch" type="search" placeholder="搜索文件名…" autocomplete="off">
-      <div class="ws-chips" id="wsChips"></div>
-      <div class="ws-sort">
-        <button class="ws-sort-type" id="wsSortBtn" data-sort="name">名称</button>
-        <button class="ws-order" id="wsDir" title="切换升/降序">↑</button>
-      </div>
+
+      <span class="ws-fgroup">
+        <span class="ws-label">类型</span>
+        <div class="ws-chips" id="wsChips"></div>
+      </span>
+
+      <span class="ws-fgroup">
+        <span class="ws-label">排序</span>
+        <div class="ws-sort">
+          <button class="ws-sort-type" id="wsSortBtn" data-sort="name">名称 <span class="ws-caret">▾</span></button>
+          <button class="ws-order" id="wsDir" title="切换升/降序">↑</button>
+        </div>
+      </span>
+    </div>
+
+    <div class="ws-admin" id="wsAdmin" hidden>
+      <a class="ws-admin-btn" id="wsUploadBtn" href="./upload.html">上传</a>
+      <button class="ws-admin-btn" id="wsSelBtn">选择</button>
+      <button class="ws-admin-btn" id="wsSelAll" hidden>全选</button>
+      <button class="ws-admin-btn danger" id="wsDelBtn" disabled>删除</button>
+      <button class="ws-admin-btn" id="wsLogout" title="清除管理会话（Token）">退出</button>
+      <span class="ws-admin-count" id="wsAdminCount"></span>
+      <span class="ws-admin-hint" id="wsAdminHint"></span>
     </div>
   </div>
 
@@ -34,6 +53,6 @@
   <p class="ws-empty" id="wsEmpty" hidden>没有匹配的文件。</p>
 </main>
 
-<script src="./assets/ws-index.js?v=dde30607e4"></script>
+<script src="./assets/ws-index.js?v=79c2c0c299"></script>
 </body>
 </html>
